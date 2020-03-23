@@ -1,0 +1,63 @@
+#!/bin/bash
+version="version 0.1"
+
+usage() 
+{ 
+    echo -e "\e[00;33m# $version\e[00m\n"
+    echo -e "\e[00;33m# Example: portscan -i host -o output \e[00m\n"
+
+    echo "OPTIONS:"
+    echo "-i	Destination IP"
+    echo "-o	Nmap output"
+    echo "-v	Nmap verbose output"
+    echo "-h	Displays this help text"
+    echo -e "\n"		
+    echo -e "\e[00;31m#########################################################\e[00m"
+
+    exit 1	 
+
+}
+
+hostCheck() 
+{
+    ping -c1 -w3 $IP >/dev/null 2>&1
+}
+
+portGrabber() 
+{
+    echo "Host is Up" >&2
+    
+    echo "Grabbing ports..."
+    ports=$(nmap -p- --min-rate=1000 -T5 -sS $IP -oA nmap/${OUTPUT}-ports ${VERBOSE} | grep ^[0-9] | cut -d '/' -f 1 | tr '\n' ',' | sed s/,$//)  
+    echo "Ports grabbed!"
+    echo $ports
+    
+    echo "Scanning..."
+    nmap -sC -sV -Pn -p $ports $IP -oA nmap/${OUTPUT}-all ${VERBOSE}
+    #autorecon $1 -cs 50 --single-target --only-scans-dir --disable-sanity-checks --profile $2 --heartbeat 20
+}
+
+hostDown() 
+{
+    echo "Host is Offline" >&2
+    exit
+}
+
+while getopts "i:o:hv" opt
+do
+   case "$opt" in
+      h ) usage ;;
+      i ) IP="$OPTARG" ;;
+      o ) OUTPUT="$OPTARG" ;;
+      v ) VERBOSE="-v" ;;
+      ? ) usage ;; # Print helpFunction in case parameter is non-existent
+   esac
+done
+
+echo "Check Host Status..."
+if hostCheck IP
+then
+    portGrabber IP OUTPUT VERBOSE
+else
+    hostDown
+fi
